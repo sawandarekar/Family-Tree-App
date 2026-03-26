@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/tree.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Tree — Visualize Your Ancestry</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /*
+      COLOR SYSTEM
+      ─────────────────────────────────────────────────────
+      Backgrounds  (solid — no transparency stacking)
+        --bg-base    : page background
+        --bg-surface : card / panel background
+        --bg-raised  : hover / elevated card
+        --bg-nav     : navbar background
+        --bg-alt     : alternating section tint
+
+      Text  (solid — no low-opacity white)
+        --tx-primary   : headings, key labels        → high contrast
+        --tx-body      : body paragraphs             → comfortable reading
+        --tx-muted     : captions, meta, footer      → softer
+
+      Accents
+        --ac-green     : primary CTA, highlights
+        --ac-green-dim : borders, icon backgrounds
+        --ac-gold      : hero gradient, quote, gold nodes
+        --ac-teal      : hover state accent
+
+      Borders
+        --bd-default   : card borders
+        --bd-strong    : hover / active borders
+    */
+    :root {
+      --bg-base:      #0b1a10;
+      --bg-surface:   #132318;
+      --bg-raised:    #1b3324;
+      --bg-nav:       #091410;
+      --bg-alt:       #0f2016;
+
+      --tx-primary:   #e8f5ed;
+      --tx-body:      #b8d4c0;
+      --tx-muted:     #7da88a;
+
+      --ac-green:     #3ddd82;
+      --ac-green-dim: #1f5c38;
+      --ac-gold:      #f0c040;
+      --ac-teal:      #2dd4bf;
+
+      --bd-default:   #254535;
+      --bd-strong:    #3ddd82;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg-base); /* prevents white flash on html element */
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg-base);
+      color: var(--tx-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Full-width background bands — section backgrounds go here, not on <section> */
+    .band        { width: 100%; background: var(--bg-base); }
+    .band-alt    { width: 100%; background: var(--bg-alt); }
+    .band-quote  { width: 100%; background: var(--bg-base); padding: 4rem 2rem 5rem; display: flex; justify-content: center; }
+
+    /* ── Nav ──────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2.5rem;
+      background: var(--bg-nav);
+      border-bottom: 1px solid var(--bd-default);
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--ac-green);
+      text-decoration: none;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--tx-body);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--ac-green); }
+
+    .nav-cta {
+      background: var(--ac-green) !important;
+      color: #0b1a10 !important;
+      padding: 0.45rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 700 !important;
+      transition: opacity 0.2s !important;
+    }
+
+    .nav-cta:hover { opacity: 0.85; }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8rem 2rem 5rem;
+      background: linear-gradient(180deg, #091410 0%, var(--bg-base) 100%);
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--bd-default);
+      border-radius: 999px;
+      padding: 0.4rem 1.1rem;
+      font-size: 0.8rem;
+      color: var(--ac-green);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 1.8rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.8rem, 7vw, 5.5rem);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-bottom: 1.5rem;
+      color: var(--tx-primary);
+    }
+
+    .hero h1 span {
+      background: linear-gradient(120deg, var(--ac-green) 0%, var(--ac-gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      max-width: 600px;
+      font-size: 1.15rem;
+      color: var(--tx-body);
+      margin-bottom: 2.8rem;
+      line-height: 1.8;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background: var(--ac-green);
+      color: #0b1a10;
+      padding: 0.85rem 2rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(61, 221, 130, 0.35);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(61, 221, 130, 0.5);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface);
+      color: var(--tx-primary);
+      padding: 0.85rem 2rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 500;
+      text-decoration: none;
+      border: 1px solid var(--bd-default);
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--ac-green);
+      background: var(--bg-raised);
+    }
+
+    /* ── Tree SVG Preview ─────────────────────────────── */
+    .tree-visual { margin-top: 4rem; }
+
+    .tree-preview {
+      position: relative;
+      width: min(780px, 92vw);
+      height: 340px;
+      background: var(--bg-surface);
+      border: 1px solid var(--bd-default);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .tree-preview::before {
+      content: 'Interactive Family Tree Canvas';
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.72rem;
+      color: var(--tx-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    /* ── Section wrapper ──────────────────────────────── */
+    section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 5rem 2rem;
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: var(--ac-green);
+      font-weight: 700;
+      background: var(--ac-green-dim);
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+      color: var(--tx-primary);
+    }
+
+    .section-title span { color: var(--ac-green); }
+
+    .section-desc {
+      max-width: 560px;
+      color: var(--tx-body);
+      font-size: 1.05rem;
+      line-height: 1.8;
+      margin-bottom: 3rem;
+    }
+
+    /* ── Why Grid ─────────────────────────────────────── */
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .why-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--bd-default);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: transform 0.25s, border-color 0.25s, background 0.25s;
+    }
+
+    .why-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--bd-strong);
+      background: var(--bg-raised);
+    }
+
+    .why-icon { font-size: 2rem; margin-bottom: 1rem; display: block; }
+
+    .why-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.6rem;
+      color: var(--ac-green);
+    }
+
+    .why-card p {
+      font-size: 0.95rem;
+      color: var(--tx-body);
+      line-height: 1.75;
+    }
+
+    /* ── Divider ──────────────────────────────────────── */
+    .divider {
+      border: none;
+      height: 1px;
+      background: var(--bd-default);
+      margin: 0;
+    }
+
+    /* ── Steps ────────────────────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 1.2rem; }
+
+    .step {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      background: var(--bg-surface);
+      border: 1px solid var(--bd-default);
+      border-left: 3px solid var(--ac-green-dim);
+      border-radius: 14px;
+      padding: 1.5rem 2rem;
+      transition: border-color 0.2s, border-left-color 0.2s, background 0.2s;
+    }
+
+    .step:hover {
+      border-color: var(--bd-strong);
+      border-left-color: var(--ac-green);
+      background: var(--bg-raised);
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 50%;
+      background: var(--ac-green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #0b1a10;
+    }
+
+    .step-content h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--tx-primary);
+      margin-bottom: 0.35rem;
+    }
+
+    .step-content p {
+      font-size: 0.92rem;
+      color: var(--tx-body);
+      line-height: 1.7;
+    }
+
+    /* ── Features Grid ────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .feature-pill {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--bd-default);
+      border-radius: 12px;
+      padding: 0.9rem 1.4rem;
+      font-size: 0.92rem;
+      transition: border-color 0.2s, transform 0.2s, background 0.2s;
+    }
+
+    .feature-pill:hover {
+      border-color: var(--ac-teal);
+      transform: translateX(4px);
+      background: var(--bg-raised);
+    }
+
+    .feature-pill .fi { font-size: 1.25rem; flex-shrink: 0; }
+    .feature-pill span { color: var(--tx-body); font-weight: 500; }
+
+    /* ── Stack Badges ─────────────────────────────────── */
+    .stack-badges { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1rem; }
+
+    .badge {
+      background: var(--bg-raised);
+      border: 1px solid var(--bd-default);
+      border-radius: 8px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--ac-green);
+    }
+
+    /* ── Quote ────────────────────────────────────────── */
+    .quote-block {
+      background: var(--bg-surface);
+      border: 1px solid var(--bd-default);
+      border-left: 4px solid var(--ac-gold);
+      border-radius: 16px;
+      padding: 3rem;
+      text-align: center;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    .quote-block blockquote {
+      font-size: clamp(1.1rem, 3vw, 1.45rem);
+      font-style: italic;
+      color: var(--ac-gold);
+      line-height: 1.75;
+      font-weight: 400;
+    }
+
+    .quote-block blockquote::before { content: '\201C'; }
+    .quote-block blockquote::after  { content: '\201D'; }
+
+    .quote-block cite {
+      display: block;
+      margin-top: 1.2rem;
+      font-size: 0.88rem;
+      color: var(--tx-muted);
+      font-style: normal;
+      font-weight: 500;
+    }
+
+    /* ── CTA ──────────────────────────────────────────── */
+    .cta-section {
+      text-align: center;
+      padding: 6rem 2rem;
+      background: linear-gradient(180deg, var(--bg-base) 0%, #091410 100%);
+    }
+
+    .cta-section h2 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -1px;
+      margin-bottom: 1rem;
+      color: var(--tx-primary);
+    }
+
+    .cta-section p {
+      color: var(--tx-body);
+      font-size: 1.05rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Footer ───────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      background: var(--bg-nav);
+      border-top: 1px solid var(--bd-default);
+      font-size: 0.82rem;
+      color: var(--tx-muted);
+    }
+
+    footer a { color: var(--ac-green); text-decoration: none; font-weight: 500; }
+    footer a:hover { color: var(--ac-teal); }
+
+    /* ── Scroll Reveal ────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── React app panel ──────────────────────────────── */
+    #root { display: none; }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 640px) {
+      nav { padding: 1rem 1.2rem; }
+      .nav-links { display: none; }
+      section { padding: 3.5rem 1.2rem; }
+      .step { flex-direction: column; gap: 0.8rem; }
+      .band-quote { padding: 3rem 1.2rem; }
+      .quote-block { padding: 2rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Navigation ──────────────────────────────────── -->
+  <nav>
+    <a href="#" class="nav-logo">
+      🌳 Family Tree
+    </a>
+    <ul class="nav-links">
+      <li><a href="#why">Why It Matters</a></li>
+      <li><a href="#how">How It Helps</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#get-started" class="nav-cta">Get Started</a></li>
+    </ul>
+  </nav>
+
+  <!-- ── Hero ────────────────────────────────────────── -->
+  <div class="hero">
+    <div class="hero-badge">
+      🌱 Open Source · No Account Required · Works Offline
+    </div>
+
+    <h1>
+      Trace Your Roots.<br />
+      <span>Preserve Your Legacy.</span>
+    </h1>
+
+    <p class="hero-sub">
+      Family Tree is an interactive ancestor hierarchy builder that lets you
+      visualize, connect, and store your family lineage — beautifully and
+      privately, right in your browser.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#get-started" class="btn-primary">Start Building Free</a>
+      <a href="#why" class="btn-secondary">Learn More</a>
+    </div>
+
+    <!-- Tree SVG preview canvas -->
+    <div class="tree-visual">
+      <div class="tree-preview">
+        <svg width="100%" height="100%" viewBox="0 0 760 310" fill="none" xmlns="http://www.w3.org/2000/svg" style="padding-top:2.5rem">
+          <!-- ── Level 0→1 edges ── -->
+          <path d="M 380 66 Q 380 98 190 128" stroke="#3ddd82" stroke-width="1.8" fill="none"/>
+          <path d="M 380 66 Q 380 98 570 128" stroke="#3ddd82" stroke-width="1.8" fill="none"/>
+
+          <!-- ── Level 1→2 edges ── -->
+          <path d="M 190 174 Q 190 202 95 226"  stroke="#3a6e52" stroke-width="1.5" fill="none"/>
+          <path d="M 190 174 Q 190 202 280 226" stroke="#3a6e52" stroke-width="1.5" fill="none"/>
+          <path d="M 570 174 Q 570 202 480 226" stroke="#3a6e52" stroke-width="1.5" fill="none"/>
+          <path d="M 570 174 Q 570 202 665 226" stroke="#3a6e52" stroke-width="1.5" fill="none"/>
+
+          <!-- ── Root node — John Doe (gold border) ── -->
+          <rect x="320" y="22" width="120" height="44" rx="10" fill="#1b3324" stroke="#f0c040" stroke-width="2"/>
+          <text x="380" y="42" text-anchor="middle" fill="#f0c040" font-size="11" font-weight="700" font-family="sans-serif">John Doe</text>
+          <text x="380" y="58" text-anchor="middle" fill="#7da88a" font-size="9" font-family="sans-serif">b. 1920</text>
+
+          <!-- ── Level 1 — Mary Doe ── -->
+          <rect x="130" y="130" width="120" height="44" rx="10" fill="#132318" stroke="#3ddd82" stroke-width="1.5"/>
+          <text x="190" y="150" text-anchor="middle" fill="#3ddd82" font-size="11" font-weight="600" font-family="sans-serif">Mary Doe</text>
+          <text x="190" y="166" text-anchor="middle" fill="#7da88a" font-size="9" font-family="sans-serif">b. 1948</text>
+
+          <!-- ── Level 1 — James Doe ── -->
+          <rect x="510" y="130" width="120" height="44" rx="10" fill="#132318" stroke="#3ddd82" stroke-width="1.5"/>
+          <text x="570" y="150" text-anchor="middle" fill="#3ddd82" font-size="11" font-weight="600" font-family="sans-serif">James Doe</text>
+          <text x="570" y="166" text-anchor="middle" fill="#7da88a" font-size="9" font-family="sans-serif">b. 1951</text>
+
+          <!-- ── Level 2 — Anna Doe (child of Mary, x:40–150) ── -->
+          <rect x="40" y="228" width="110" height="38" rx="8" fill="#0f1f14" stroke="#254535" stroke-width="1"/>
+          <text x="95" y="252" text-anchor="middle" fill="#b8d4c0" font-size="10" font-family="sans-serif">Anna Doe</text>
+
+          <!-- ── Level 2 — Peter Doe (child of Mary, x:225–335) ── -->
+          <rect x="225" y="228" width="110" height="38" rx="8" fill="#0f1f14" stroke="#254535" stroke-width="1"/>
+          <text x="280" y="252" text-anchor="middle" fill="#b8d4c0" font-size="10" font-family="sans-serif">Peter Doe</text>
+
+          <!-- ── Level 2 — Claire Doe (child of James, x:425–535) ── -->
+          <rect x="425" y="228" width="110" height="38" rx="8" fill="#0f1f14" stroke="#254535" stroke-width="1"/>
+          <text x="480" y="252" text-anchor="middle" fill="#b8d4c0" font-size="10" font-family="sans-serif">Claire Doe</text>
+
+          <!-- ── Level 2 — Robert Doe (child of James, x:610–720) ── -->
+          <rect x="610" y="228" width="110" height="38" rx="8" fill="#0f1f14" stroke="#254535" stroke-width="1"/>
+          <text x="665" y="252" text-anchor="middle" fill="#b8d4c0" font-size="10" font-family="sans-serif">Robert Doe</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Quote ────────────────────────────────────────── -->
+  <div class="band-quote">
+    <div class="quote-block reveal">
+      <blockquote>
+        A people without the knowledge of their past history, origin and culture
+        is like a tree without roots.
+      </blockquote>
+      <cite>— Marcus Garvey</cite>
+    </div>
+  </div>
+
+  <!-- ── Why It Matters ───────────────────────────────── -->
+  <div class="band-alt">
+  <section id="why">
+    <div class="reveal">
+      <p class="section-label">Why It Matters</p>
+      <h2 class="section-title">Your story didn't start <span>with you.</span></h2>
+      <p class="section-desc">
+        Every family has a story stretching back generations — names, dates, places, and
+        connections that define who you are. Without a system to capture them, they fade away.
+      </p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card reveal">
+        <span class="why-icon">🏛️</span>
+        <h3>Preserve History</h3>
+        <p>Oral traditions get lost. Physical documents decay. Family Tree keeps your family's history alive in a structured, portable format that survives generations.</p>
+      </div>
+      <div class="why-card reveal">
+        <span class="why-icon">🔗</span>
+        <h3>Understand Connections</h3>
+        <p>See how relatives are linked across generations at a glance. Discover shared ancestors, map cousins, and understand the full scope of your family network visually.</p>
+      </div>
+      <div class="why-card reveal">
+        <span class="why-icon">🌍</span>
+        <h3>Cultural Identity</h3>
+        <p>Knowing where you come from shapes who you are. Documenting your lineage strengthens your cultural identity and gives the next generation a foundation to stand on.</p>
+      </div>
+      <div class="why-card reveal">
+        <span class="why-icon">🧬</span>
+        <h3>Medical Heritage</h3>
+        <p>Family health history matters. Tracking ancestors helps identify inherited conditions and gives your family and doctors crucial context for better health decisions.</p>
+      </div>
+      <div class="why-card reveal">
+        <span class="why-icon">❤️</span>
+        <h3>Emotional Legacy</h3>
+        <p>Stories about grandparents and great-grandparents bring families closer. Family Tree gives you a place to attach notes, milestones, and memories to every person.</p>
+      </div>
+      <div class="why-card reveal">
+        <span class="why-icon">📦</span>
+        <h3>Yours Forever</h3>
+        <p>No subscriptions. No data lock-in. Your entire family tree is stored locally as a plain JSON file — readable, exportable, and owned by you, always.</p>
+      </div>
+    </div>
+  </section>
+  </div><!-- /band-alt -->
+
+  <!-- ── How It Helps ──────────────────────────────────── -->
+  <div class="band">
+  <section id="how">
+    <div class="reveal">
+      <p class="section-label">How It Helps</p>
+      <h2 class="section-title">From zero to full tree <span>in minutes.</span></h2>
+      <p class="section-desc">
+        Family Tree is designed to be simple enough to start immediately and powerful enough to grow with your research over years.
+      </p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Add Your First Person</h3>
+          <p>Click "Add Person", enter their name, dates, and any notes you know. A node appears instantly on the canvas — no setup, no form overload.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Connect the Dots</h3>
+          <p>Draw edges between nodes to create parent-child relationships. The tree builds itself visually as you connect — clear and intuitive.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Let Auto-Layout Do the Work</h3>
+          <p>Hit Auto-Layout and watch your tree snap into a clean, hierarchical structure automatically using the dagre algorithm.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h3>Save, Export & Share</h3>
+          <p>Your tree auto-saves locally every time you make a change. Export it as a JSON file to share with family or back it up anywhere.</p>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h3>Import & Collaborate</h3>
+          <p>Receive a tree JSON from a relative, import it in one click, and continue building together — no account or sync required.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  </div><!-- /band -->
+
+  <!-- ── Features ──────────────────────────────────────── -->
+  <div class="band-alt">
+  <section id="features">
+    <div class="reveal">
+      <p class="section-label">Features</p>
+      <h2 class="section-title">Everything you need, <span>nothing you don't.</span></h2>
+      <p class="section-desc">Built with a focused feature set — powerful for researchers, simple for everyone else.</p>
+    </div>
+    <div class="features-grid reveal">
+      <div class="feature-pill"><span class="fi">🖱️</span><span>Drag & drop interactive canvas</span></div>
+      <div class="feature-pill"><span class="fi">🔍</span><span>Pan, zoom, and fit-to-view</span></div>
+      <div class="feature-pill"><span class="fi">👤</span><span>Rich person cards (name, dates, notes)</span></div>
+      <div class="feature-pill"><span class="fi">🔗</span><span>Parent-child edge connections</span></div>
+      <div class="feature-pill"><span class="fi">📐</span><span>One-click auto-layout (dagre)</span></div>
+      <div class="feature-pill"><span class="fi">💾</span><span>Auto-save to IndexedDB (offline)</span></div>
+      <div class="feature-pill"><span class="fi">📤</span><span>Export full tree as JSON</span></div>
+      <div class="feature-pill"><span class="fi">📥</span><span>Import JSON from file</span></div>
+      <div class="feature-pill"><span class="fi">🔎</span><span>Search ancestor by name</span></div>
+      <div class="feature-pill"><span class="fi">📱</span><span>Responsive desktop & tablet UI</span></div>
+      <div class="feature-pill"><span class="fi">🔒</span><span>100% private — data stays local</span></div>
+      <div class="feature-pill"><span class="fi">⚡</span><span>No account, no signup needed</span></div>
+    </div>
+    <div class="reveal" style="margin-top:3rem">
+      <p class="section-label">Built With</p>
+      <div class="stack-badges">
+        <span class="badge">React 19</span>
+        <span class="badge">TypeScript</span>
+        <span class="badge">Vite</span>
+        <span class="badge">React Flow v12</span>
+        <span class="badge">Zustand v5</span>
+        <span class="badge">Tailwind CSS v4</span>
+        <span class="badge">shadcn/ui</span>
+        <span class="badge">Dexie.js</span>
+        <span class="badge">Framer Motion</span>
+        <span class="badge">dagre</span>
+      </div>
+    </div>
+  </section>
+  </div><!-- /band-alt -->
+
+  <!-- ── CTA ───────────────────────────────────────────── -->
+  <div class="cta-section" id="get-started">
+    <div class="reveal">
+      <h2>Start building your family tree today.</h2>
+      <p>Free forever. No sign-up. Works entirely in your browser.</p>
+      <a href="#" onclick="launchApp()" class="btn-primary" style="font-size:1.05rem;padding:1rem 2.5rem;">
+        Open Family Tree App
+      </a>
+      <div style="margin-top:1.5rem;font-size:0.82rem;color:var(--tx-muted);">
+        Or clone the repo and run locally — see README for setup instructions.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ────────────────────────────────────────── -->
+  <footer>
+    <p>
+      Family Tree &copy; 2026 &nbsp;·&nbsp;
+      <a href="https://github.com/your-username/family-tree">GitHub</a> &nbsp;·&nbsp;
+      MIT License &nbsp;·&nbsp;
+      Built with React Flow, Zustand &amp; Tailwind CSS
+    </p>
+  </footer>
+
+  <!-- ── React App (mounts when user launches app) ──── -->
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <script>
+    // Scroll reveal
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+      }),
+      { threshold: 0.12 }
+    );
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Launch the React app — hide landing, show app
+    function launchApp() {
+      // Fade out landing content
+      document.body.style.transition = 'opacity 0.3s ease';
+      document.body.style.opacity = '0';
+
+      setTimeout(() => {
+        // Hide every landing page element
+        document.querySelector('nav').style.display = 'none';
+        document.querySelectorAll(
+          '.hero, .band-quote, .band-alt, .band, .cta-section, footer'
+        ).forEach(el => el.style.display = 'none');
+
+        // Show the React app
+        const root = document.getElementById('root');
+        root.style.display = 'block';
+        root.style.height = '100vh';
+
+        // Fade back in
+        document.body.style.opacity = '1';
+      }, 300);
+    }
+  </script>
+
+</body>
+</html>
