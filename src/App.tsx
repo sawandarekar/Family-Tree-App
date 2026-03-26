@@ -684,19 +684,26 @@ export default function App() {
     const name = saveName.trim()
     if (!name || !treeData) return
 
-    const body = JSON.stringify(treeData)
     const headers = { 'Content-Type': 'application/json' }
 
     // Try POST first; if 409 (exists) ask to overwrite then PUT
-    let res = await fetch(`/api/trees/${encodeURIComponent(name)}`, { method: 'POST', headers, body })
+    let res = await fetch('/api/trees', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ name, tree: treeData }),
+    })
 
     if (res.status === 409) {
       if (!window.confirm(`"${name}" is already saved on the server. Overwrite?`)) return
-      res = await fetch(`/api/trees/${encodeURIComponent(name)}`, { method: 'PUT', headers, body })
+      res = await fetch(`/api/trees/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(treeData),
+      })
     }
 
     if (!res.ok) {
-      alert('Save failed. Make sure the server is running (`npm run server`).')
+      alert('Save failed.')
       return
     }
 
