@@ -223,7 +223,7 @@ function TreeCanvas({ data, onDelete, onMove }: {
   const svgRef  = useRef<SVGSVGElement>(null)
   const gRef    = useRef<SVGGElement>(null)
   const ghostRef = useRef<SVGGElement>(null)
-  const zoomRef   = useRef<d3.ZoomBehavior<SVGSVGElement, unknown>>()
+  const zoomRef   = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | undefined>(undefined)
   const draggingIdRef = useRef<string | null>(null)
 
   const [panning,     setPanning]     = useState(false)
